@@ -1,0 +1,76 @@
+# CH32V307 EHCI debug bridge
+
+Rust/Embassy firmware for using a CH32V307 as a coreboot EHCI debug dongle.
+
+- USBHS (PB7/PB6) is the DUT-facing high-speed USB 2.0 device.
+- EHCI debug transactions are limited to 8-byte packets; the debug class uses 8-byte bulk endpoints and advertises them through `USB_DT_DEBUG`.
+- Bridge backends:
+  - `acm-bridge` (default): OTG_FS (PA12/PA11) presents a CDC-ACM serial port.
+  - `tcp-bridge`: the devboard Ethernet PHY gets an address via DHCP and listens on TCP port `3333`.
+  - Both can be enabled at once: DUT output is fanned out to ACM and TCP, while input from either backend is forwarded to the DUT.
+
+## Build
+
+Default CDC-ACM bridge:
+
+```sh
+nix develop
+cargo build --release
+```
+
+CDC-ACM plus TCP bridge:
+
+```sh
+nix develop
+cargo build --release --features tcp-bridge
+```
+
+TCP-only bridge:
+
+```sh
+nix develop
+cargo build --release --no-default-features --features tcp-bridge
+```
+
+The release ELF is written to:
+
+```text
+target/riscv32imfc-unknown-none-elf/release/ch32v307-ehci-debug
+```
+
+## Flash
+
+The cargo runner is configured for WCH-Link:
+
+```sh
+nix develop
+cargo run --release
+```
+
+TCP-only build:
+
+```sh
+cargo run --release --no-default-features --features tcp-bridge
+```
+
+ACM plus TCP build:
+
+```sh
+cargo run --release --features tcp-bridge
+```
+
+## TCP usage
+
+Flash a build with `tcp-bridge`, connect Ethernet, then connect to the DHCP-assigned address on port `3333`:
+
+```sh
+nc <board-ip> 3333
+```
+
+The TCP stream is a raw bidirectional byte bridge to coreboot's EHCI debug console. Only one TCP client is accepted at a time; reconnecting starts a new bridge session. In the combined ACM+TCP build, DUT output is broadcast with `embassy_sync::pubsub::PubSubChannel::publish_immediate()`, so an inactive backend does not stall the other one. If the output queue is full, the oldest queued byte is discarded to make room for the newest byte; subscribers skip lagged data with `next_message_pure()`.
+
+## Notes
+
+`embassy-usb` 0.5.1 does not delegate unknown standard device descriptors or features to class handlers. This tree vendors a one-file patch so the EHCI debug class can answer `GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`.
+
+The current `ch32-hal` USBHS driver cannot allocate the same endpoint index for both directions, so this firmware advertises debug OUT endpoint 1 and debug IN endpoint 2. coreboot reads those addresses from the USB debug descriptor.

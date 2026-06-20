@@ -1,0 +1,42 @@
+[package]
+name = "ch32v307-ehci-debug"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["acm-bridge"]
+acm-bridge = []
+tcp-bridge = ["dep:embassy-net", "dep:embassy-net-driver", "dep:embedded-io-async", "dep:static_cell"]
+
+[dependencies]
+ch32-hal = { path = "../ch32-hal", features = [
+    "ch32v307vct6",
+    "memory-x",
+    "embassy",
+    "rt",
+    "highcode",
+] }
+embassy-executor = { version = "0.10.0", features = ["platform-spin", "executor-thread"] }
+embassy-futures = "0.1.2"
+embassy-net = { version = "0.8.0", optional = true, features = ["tcp", "dhcpv4", "medium-ethernet", "proto-ipv4"] }
+embassy-net-driver = { version = "0.2.0", optional = true }
+embassy-sync = "0.8.0"
+embassy-time = "0.5.1"
+embassy-usb = "0.5.1"
+embassy-usb-driver = "=0.2.0"
+embedded-io-async = { version = "0.7", optional = true }
+panic-halt = "1.0"
+portable-atomic = { version = "1", features = ["critical-section"] }
+qingke = "0.7"
+qingke-rt = { version = "0.7", features = ["highcode"] }
+static_cell = { version = "2.1", optional = true }
+
+[profile.release]
+strip = false
+lto = true
+opt-level = "z"
+
+[patch.crates-io]
+# Local patch: delegate unknown standard device descriptors/features to handlers
+# so the EHCI debug class can implement USB_DT_DEBUG and DEBUG_MODE.
+embassy-usb = { path = "vendor/embassy-usb" }
