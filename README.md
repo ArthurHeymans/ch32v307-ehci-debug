@@ -59,6 +59,19 @@ ACM plus TCP build:
 cargo run --release --features tcp-bridge
 ```
 
+## coreboot configuration
+
+In coreboot's `src/drivers/usb/Kconfig`, select:
+
+```text
+Type of dongle -> USB gadget driver or Net20DC
+CONFIG_USBDEBUG_DONGLE_STD=y
+```
+
+This firmware implements the standard USB 2.0 EHCI debug device path: coreboot probes it with `GET_DESCRIPTOR(USB_DT_DEBUG)`, enables it with `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`, then uses the advertised 8-byte bulk IN/OUT debug endpoints. Do not select the FTDI FT232H or WCH CH347 dongle options; those are for UART bridge chips with vendor-specific setup requests, not for this firmware.
+
+`USBDEBUG_DONGLE_STD` is coreboot's default dongle type. You still need the usual board-specific USB debug settings, such as `CONFIG_USBDEBUG=y`, the correct EHCI controller index, and possibly the debug port number.
+
 ## TCP usage
 
 Flash a build with `tcp-bridge`, connect Ethernet, then connect to the DHCP-assigned address on port `3333`:
