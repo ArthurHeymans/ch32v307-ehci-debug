@@ -15,7 +15,9 @@ use embassy_usb::{Builder, Handler};
 const USB_DT_DEBUG: u8 = 0x0a;
 const USB_DEVICE_DEBUG_MODE: u16 = 6;
 const DEBUG_DESCRIPTOR_LEN: usize = 4;
-const DEBUG_PACKET_SIZE: u16 = 8;
+
+/// Maximum payload size of an EHCI debug-port transaction.
+pub const DEBUG_TRANSACTION_SIZE: usize = 8;
 
 /// Holds control-request state for the EHCI debug class.
 pub struct State {
@@ -55,7 +57,7 @@ impl<'d, D: Driver<'d>> EhciDebugClass<'d, D> {
         let read_ep = alt.alloc_endpoint_out(
             EndpointType::Bulk,
             Some(EndpointAddress::from_parts(1, Direction::Out)),
-            DEBUG_PACKET_SIZE,
+            DEBUG_TRANSACTION_SIZE as u16,
             0,
         );
         alt.endpoint_descriptor(
@@ -68,7 +70,7 @@ impl<'d, D: Driver<'d>> EhciDebugClass<'d, D> {
         let write_ep = alt.alloc_endpoint_in(
             EndpointType::Bulk,
             Some(EndpointAddress::from_parts(2, Direction::In)),
-            DEBUG_PACKET_SIZE,
+            DEBUG_TRANSACTION_SIZE as u16,
             0,
         );
         alt.endpoint_descriptor(
@@ -108,7 +110,7 @@ impl<'d, D: Driver<'d>> DebugOut<'d, D> {
     /// Reads one EHCI debug OUT transaction.
     pub async fn read_packet(
         &mut self,
-        buf: &mut [u8; DEBUG_PACKET_SIZE as usize],
+        buf: &mut [u8; DEBUG_TRANSACTION_SIZE],
     ) -> Result<usize, embassy_usb::driver::EndpointError> {
         self.ep.read(buf).await
     }

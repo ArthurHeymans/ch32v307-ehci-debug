@@ -3,7 +3,8 @@
 Rust/Embassy firmware for using a CH32V307 as a coreboot EHCI debug dongle.
 
 - USBHS (PB7/PB6) is the DUT-facing high-speed USB 2.0 device.
-- EHCI debug transactions are limited to 8-byte packets; the debug class uses 8-byte bulk endpoints and advertises them through `USB_DT_DEBUG`.
+- EHCI debug transactions are limited to 8-byte packets; the debug class uses
+  8-byte bulk endpoints and advertises them through `USB_DT_DEBUG`.
 - Bridge backends:
   - `acm-bridge` (default): OTG_FS (PA12/PA11) presents a CDC-ACM serial port.
   - `tcp-bridge`: the devboard Ethernet PHY gets an address via DHCP and listens on TCP port `3333`.
@@ -68,7 +69,12 @@ Type of dongle -> USB gadget driver or Net20DC
 CONFIG_USBDEBUG_DONGLE_STD=y
 ```
 
-This firmware implements the standard USB 2.0 EHCI debug device path: coreboot probes it with `GET_DESCRIPTOR(USB_DT_DEBUG)`, enables it with `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`, then uses the advertised 8-byte bulk IN/OUT debug endpoints. Do not select the FTDI FT232H or WCH CH347 dongle options; those are for UART bridge chips with vendor-specific setup requests, not for this firmware.
+This firmware implements the standard USB 2.0 EHCI debug device path: coreboot
+probes it with `GET_DESCRIPTOR(USB_DT_DEBUG)`, enables it with
+`SET_FEATURE(USB_DEVICE_DEBUG_MODE)`, then uses the advertised bulk IN/OUT debug
+endpoint addresses for 8-byte debug transactions. Do not select the FTDI FT232H
+or WCH CH347 dongle options; those are for UART bridge chips with
+vendor-specific setup requests, not for this firmware.
 
 `USBDEBUG_DONGLE_STD` is coreboot's default dongle type. You still need the usual board-specific USB debug settings, such as `CONFIG_USBDEBUG=y`, the correct EHCI controller index, and possibly the debug port number.
 
@@ -86,4 +92,6 @@ The TCP stream is a raw bidirectional byte bridge to coreboot's EHCI debug conso
 
 This tree uses ArthurHeymans' `USB_DEBUG` branch of Embassy for `embassy-usb`. The needed upstreamable change delegates unrecognized standard device requests/descriptors to class handlers, letting the EHCI debug class answer `GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`.
 
-The current `ch32-hal` USBHS driver cannot allocate the same endpoint index for both directions, so this firmware advertises debug OUT endpoint 1 and debug IN endpoint 2. coreboot reads those addresses from the USB debug descriptor.
+The current `ch32-hal` USBHS driver cannot allocate the same endpoint index for
+both directions, so this firmware advertises debug OUT endpoint 1 and debug IN
+endpoint 2. coreboot reads those addresses from the USB debug descriptor.

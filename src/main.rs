@@ -38,22 +38,25 @@ use static_cell::StaticCell;
 
 mod ehci_debug;
 
-use ehci_debug::{DebugIn, DebugOut, EhciDebugClass, State as EhciDebugState};
+use ehci_debug::{
+    DebugIn, DebugOut, EhciDebugClass, State as EhciDebugState, DEBUG_TRANSACTION_SIZE,
+};
 
 const VID: u16 = 0x1209;
 const PID_DEBUG: u16 = 0x000d;
 #[cfg(feature = "acm-bridge")]
 const PID_ACM: u16 = 0x000e;
 
-const DEBUG_PACKET_SIZE: usize = 8;
 #[cfg(feature = "acm-bridge")]
 const ACM_PACKET_SIZE: usize = 64;
 #[cfg(feature = "acm-bridge")]
 const ACM_TX_PACKET_SIZE: usize = 63;
+#[cfg(feature = "acm-bridge")]
+const ACM_ENDPOINT_BUFFER_COUNT: usize = 4;
 #[cfg(feature = "tcp-bridge")]
 const TCP_PORT: u16 = 3333;
 #[cfg(feature = "tcp-bridge")]
-const TCP_BUFFER_SIZE: usize = 2048;
+const TCP_BUFFER_SIZE: usize = 1536;
 #[cfg(feature = "tcp-bridge")]
 const TCP_IO_CHUNK: usize = 1024;
 const QUEUE_DEPTH: usize = 4096;
@@ -88,6 +91,8 @@ unsafe fn ETH() {
 #[embassy_executor::main(entry = "qingke_rt::entry")]
 async fn main(_spawner: Spawner) -> ! {
     let cfg = Config {
+        // Match the USBHS example clock tree: this preset assumes an 8 MHz HSE,
+        // derives 144 MHz SYSCLK, 48 MHz USB FS, and the USBHS PLL reference.
         rcc: ch32_hal::rcc::Config::SYSCLK_FREQ_144MHZ_HSE,
         ..Default::default()
     };
@@ -97,7 +102,7 @@ async fn main(_spawner: Spawner) -> ! {
         core::array::from_fn(|_| EndpointDataBuffer512::default());
     let hs_driver = UsbHsDriver::new(p.USBHS, UsbHsIrqs, p.PB7, p.PB6, &mut hs_ep_buffers);
     let mut hs_config = embassy_usb::Config::new(VID, PID_DEBUG);
-    hs_config.manufacturer = Some("coreboot");
+    hs_config.manufacturer = Some("Arthur Heymans");
     hs_config.product = Some("CH32V307 EHCI debug device");
     hs_config.serial_number = Some("ehci-debug");
     hs_config.max_power = 100;
@@ -157,11 +162,15 @@ async fn acm_bridge<'d, D>(
 ) where
     D: embassy_usb::driver::Driver<'d>,
 {
-    let mut fs_ep_buffers: [EndpointDataBuffer512; 3] =
+    // CDC ACM allocates interrupt IN, bulk OUT, bulk IN, and then EP0 when the
+    // USB device starts. The pull-up is enabled before EP0 allocation in the
+    // current HAL, so too few buffers makes Linux see a device that never
+    // answers setup packets.
+    let mut fs_ep_buffers: [EndpointDataBuffer512; ACM_ENDPOINT_BUFFER_COUNT] =
         core::array::from_fn(|_| EndpointDataBuffer512::default());
     let fs_driver = otg_fs::Driver::new(otg_fs, dp, dm, &mut fs_ep_buffers);
     let mut fs_config = embassy_usb::Config::new(VID, PID_ACM);
-    fs_config.manufacturer = Some("coreboot");
+    fs_config.manufacturer = Some("Arthur Heymans");
     fs_config.product = Some("CH32V307 EHCI debug ACM bridge");
     fs_config.serial_number = Some("ehci-acm");
     fs_config.max_power = 100;
@@ -217,11 +226,15 @@ async fn acm_tcp_bridge<'d, D>(
 ) where
     D: embassy_usb::driver::Driver<'d>,
 {
-    let mut fs_ep_buffers: [EndpointDataBuffer512; 3] =
+    // CDC ACM allocates interrupt IN, bulk OUT, bulk IN, and then EP0 when the
+    // USB device starts. The pull-up is enabled before EP0 allocation in the
+    // current HAL, so too few buffers makes Linux see a device that never
+    // answers setup packets.
+    let mut fs_ep_buffers: [EndpointDataBuffer512; ACM_ENDPOINT_BUFFER_COUNT] =
         core::array::from_fn(|_| EndpointDataBuffer512::default());
     let fs_driver = otg_fs::Driver::new(otg_fs, dp, dm, &mut fs_ep_buffers);
     let mut fs_config = embassy_usb::Config::new(VID, PID_ACM);
-    fs_config.manufacturer = Some("coreboot");
+    fs_config.manufacturer = Some("ArthurHeymans");
     fs_config.product = Some("CH32V307 EHCI debug ACM bridge");
     fs_config.serial_number = Some("ehci-acm");
     fs_config.max_power = 100;
@@ -323,7 +336,7 @@ async fn dut_to_bridge_task<'d, D>(mut debug_out: DebugOut<'d, D>, bridge_tx: By
 where
     D: embassy_usb::driver::Driver<'d>,
 {
-    let mut buf = [0; DEBUG_PACKET_SIZE];
+    let mut buf = [0; DEBUG_TRANSACTION_SIZE];
 
     loop {
         debug_out.wait_enabled().await;
@@ -341,7 +354,7 @@ where
     D: embassy_usb::driver::Driver<'d>,
 {
     let publisher = output.immediate_publisher();
-    let mut buf = [0; DEBUG_PACKET_SIZE];
+    let mut buf = [0; DEBUG_TRANSACTION_SIZE];
 
     loop {
         debug_out.wait_enabled().await;
@@ -357,11 +370,11 @@ async fn bridge_to_dut_task<'d, D>(mut debug_in: DebugIn<'d, D>, dut_rx: ByteRec
 where
     D: embassy_usb::driver::Driver<'d>,
 {
-    let mut buf = [0; DEBUG_PACKET_SIZE];
+    let mut buf = [0; DEBUG_TRANSACTION_SIZE];
 
     loop {
         debug_in.wait_enabled().await;
-        let n = fill_packet(&dut_rx, &mut buf, DEBUG_PACKET_SIZE).await;
+        let n = fill_packet(&dut_rx, &mut buf, DEBUG_TRANSACTION_SIZE).await;
         if matches!(
             debug_in.write_packet(&buf[..n]).await,
             Err(EndpointError::Disabled)
