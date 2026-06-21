@@ -37,11 +37,11 @@ lto = true
 opt-level = "z"
 
 [patch.crates-io]
-embassy-usb = { path = "../embassy/embassy-usb" }
-embassy-usb-driver = { path = "../embassy/embassy-usb-driver" }
-embassy-futures = { path = "../embassy/embassy-futures" }
-embassy-sync = { path = "../embassy/embassy-sync" }
-embassy-time = { path = "../embassy/embassy-time" }
-embassy-time-driver = { path = "../embassy/embassy-time-driver" }
-embassy-time-queue-utils = { path = "../embassy/embassy-time-queue-utils" }
-embassy-net-driver-channel = { path = "../embassy/embassy-net-driver-channel" }
+embassy-usb = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-usb-driver = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-futures = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-sync = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-time = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-time-driver = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-time-queue-utils = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-net-driver-channel = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }

@@ -231,16 +231,18 @@ dependencies = [
 [[package]]
 name = "embassy-executor-timer-queue"
 version = "0.1.0"
-
-[[package]]
-name = "embassy-executor-timer-queue"
-version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fc328bf943af66b80b98755db9106bf7e7471b0cf47dc8559cd9a6be504cc9c"
 
 [[package]]
+name = "embassy-executor-timer-queue"
+version = "0.1.0"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
+
+[[package]]
 name = "embassy-futures"
 version = "0.1.2"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 
 [[package]]
 name = "embassy-hal-internal"
@@ -271,19 +273,21 @@ dependencies = [
 [[package]]
 name = "embassy-net-driver"
 version = "0.2.0"
-
-[[package]]
-name = "embassy-net-driver"
-version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "524eb3c489760508f71360112bca70f6e53173e6fe48fc5f0efd0f5ab217751d"
 
 [[package]]
+name = "embassy-net-driver"
+version = "0.2.0"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
+
+[[package]]
 name = "embassy-net-driver-channel"
 version = "0.4.0"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 dependencies = [
  "embassy-futures",
- "embassy-net-driver 0.2.0",
+ "embassy-net-driver 0.2.0 (git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG)",
  "embassy-sync 0.8.0",
 ]
 
@@ -304,6 +308,7 @@ dependencies = [
 [[package]]
 name = "embassy-sync"
 version = "0.8.0"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 dependencies = [
  "cfg-if",
  "critical-section",
@@ -316,6 +321,7 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.5.1"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 dependencies = [
  "cfg-if",
  "critical-section",
@@ -330,6 +336,7 @@ dependencies = [
 [[package]]
 name = "embassy-time-driver"
 version = "0.2.2"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 dependencies = [
  "document-features",
 ]
@@ -337,14 +344,16 @@ dependencies = [
 [[package]]
 name = "embassy-time-queue-utils"
 version = "0.3.2"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 dependencies = [
- "embassy-executor-timer-queue 0.1.0",
+ "embassy-executor-timer-queue 0.1.0 (git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG)",
  "heapless 0.9.3",
 ]
 
 [[package]]
 name = "embassy-usb"
 version = "0.6.0"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 dependencies = [
  "bitflags 2.13.0",
  "embassy-futures",
@@ -361,6 +370,7 @@ dependencies = [
 [[package]]
 name = "embassy-usb-driver"
 version = "0.2.2"
+source = "git+https://github.com/ArthurHeymans/embassy.git?branch=USB_DEBUG#864fc019c96a96699f4b618e87d06af9c78aba0b"
 dependencies = [
  "embedded-io-async 0.6.1",
  "embedded-io-async 0.7.0",

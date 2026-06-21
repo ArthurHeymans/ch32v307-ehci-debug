@@ -84,6 +84,6 @@ The TCP stream is a raw bidirectional byte bridge to coreboot's EHCI debug conso
 
 ## Notes
 
-This tree uses the local `../embassy` checkout for `embassy-usb`. The needed upstreamable change is in `../embassy/embassy-usb`: unrecognized standard device requests/descriptors are delegated to class handlers, letting the EHCI debug class answer `GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`.
+This tree uses ArthurHeymans' `USB_DEBUG` branch of Embassy for `embassy-usb`. The needed upstreamable change delegates unrecognized standard device requests/descriptors to class handlers, letting the EHCI debug class answer `GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`.
 
 The current `ch32-hal` USBHS driver cannot allocate the same endpoint index for both directions, so this firmware advertises debug OUT endpoint 1 and debug IN endpoint 2. coreboot reads those addresses from the USB debug descriptor.
