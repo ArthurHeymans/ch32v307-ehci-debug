@@ -72,6 +72,44 @@ type DutOutputSubscriber<'a> = Subscriber<'a, NoopRawMutex, u8, QUEUE_DEPTH, 2, 
 #[cfg(feature = "tcp-bridge")]
 type NetDevice = Ethernet<'static, 4, 4, GenericPhy>;
 
+#[cfg(feature = "acm-bridge")]
+type UsbFsDriver<'d> = otg_fs::Driver<'d, peripherals::OTG_FS, ACM_ENDPOINT_BUFFER_COUNT, 512>;
+#[cfg(feature = "acm-bridge")]
+type AcmCdcSender<'d> = CdcSender<'d, UsbFsDriver<'d>>;
+#[cfg(feature = "acm-bridge")]
+type AcmCdcReceiver<'d> = CdcReceiver<'d, UsbFsDriver<'d>>;
+
+#[cfg(feature = "acm-bridge")]
+struct AcmUsbResources<'d> {
+    ep_buffers: [EndpointDataBuffer512; ACM_ENDPOINT_BUFFER_COUNT],
+    config_descriptor: [u8; 256],
+    bos_descriptor: [u8; 64],
+    msos_descriptor: [u8; 64],
+    control_buf: [u8; 64],
+    cdc_state: CdcState<'d>,
+}
+
+#[cfg(feature = "acm-bridge")]
+impl<'d> AcmUsbResources<'d> {
+    fn new() -> Self {
+        Self {
+            ep_buffers: core::array::from_fn(|_| EndpointDataBuffer512::default()),
+            config_descriptor: [0; 256],
+            bos_descriptor: [0; 64],
+            msos_descriptor: [0; 64],
+            control_buf: [0; 64],
+            cdc_state: CdcState::new(),
+        }
+    }
+}
+
+#[cfg(feature = "acm-bridge")]
+struct AcmUsb<'d> {
+    device: embassy_usb::UsbDevice<'d, UsbFsDriver<'d>>,
+    sender: AcmCdcSender<'d>,
+    receiver: AcmCdcReceiver<'d>,
+}
+
 bind_interrupts!(struct UsbHsIrqs {
     USBHS => usbhs::InterruptHandler<peripherals::USBHS>;
     USBHS_WKUP => usbhs::WakeupInterruptHandler<peripherals::USBHS>;
@@ -162,40 +200,12 @@ async fn acm_bridge<'d, D>(
 ) where
     D: embassy_usb::driver::Driver<'d>,
 {
-    // CDC ACM allocates interrupt IN, bulk OUT, bulk IN, and then EP0 when the
-    // USB device starts. The pull-up is enabled before EP0 allocation in the
-    // current HAL, so too few buffers makes Linux see a device that never
-    // answers setup packets.
-    let mut fs_ep_buffers: [EndpointDataBuffer512; ACM_ENDPOINT_BUFFER_COUNT] =
-        core::array::from_fn(|_| EndpointDataBuffer512::default());
-    let fs_driver = otg_fs::Driver::new(otg_fs, dp, dm, &mut fs_ep_buffers);
-    let mut fs_config = embassy_usb::Config::new(VID, PID_ACM);
-    fs_config.manufacturer = Some("Arthur Heymans");
-    fs_config.product = Some("CH32V307 EHCI debug ACM bridge");
-    fs_config.serial_number = Some("ehci-acm");
-    fs_config.max_power = 100;
-    fs_config.max_packet_size_0 = 64;
-    fs_config.device_class = 0x02;
-    fs_config.device_sub_class = 0x02;
-    fs_config.device_protocol = 0x00;
-    fs_config.composite_with_iads = false;
-
-    let mut fs_config_descriptor = [0; 256];
-    let mut fs_bos_descriptor = [0; 64];
-    let mut fs_msos_descriptor = [0; 64];
-    let mut fs_control_buf = [0; 64];
-    let mut cdc_state = CdcState::new();
-    let mut fs_builder = Builder::new(
-        fs_driver,
-        fs_config,
-        &mut fs_config_descriptor,
-        &mut fs_bos_descriptor,
-        &mut fs_msos_descriptor,
-        &mut fs_control_buf,
-    );
-    let cdc = CdcAcmClass::new(&mut fs_builder, &mut cdc_state, ACM_PACKET_SIZE as u16);
-    let mut fs_usb = fs_builder.build();
-    let (cdc_sender, cdc_receiver) = cdc.split();
+    let mut acm_resources = AcmUsbResources::new();
+    let AcmUsb {
+        device: mut fs_usb,
+        sender: cdc_sender,
+        receiver: cdc_receiver,
+    } = setup_acm(otg_fs, dp, dm, &mut acm_resources);
 
     let dut_to_acm = ByteChannel::new();
     let acm_to_dut = ByteChannel::new();
@@ -226,40 +236,12 @@ async fn acm_tcp_bridge<'d, D>(
 ) where
     D: embassy_usb::driver::Driver<'d>,
 {
-    // CDC ACM allocates interrupt IN, bulk OUT, bulk IN, and then EP0 when the
-    // USB device starts. The pull-up is enabled before EP0 allocation in the
-    // current HAL, so too few buffers makes Linux see a device that never
-    // answers setup packets.
-    let mut fs_ep_buffers: [EndpointDataBuffer512; ACM_ENDPOINT_BUFFER_COUNT] =
-        core::array::from_fn(|_| EndpointDataBuffer512::default());
-    let fs_driver = otg_fs::Driver::new(otg_fs, dp, dm, &mut fs_ep_buffers);
-    let mut fs_config = embassy_usb::Config::new(VID, PID_ACM);
-    fs_config.manufacturer = Some("ArthurHeymans");
-    fs_config.product = Some("CH32V307 EHCI debug ACM bridge");
-    fs_config.serial_number = Some("ehci-acm");
-    fs_config.max_power = 100;
-    fs_config.max_packet_size_0 = 64;
-    fs_config.device_class = 0x02;
-    fs_config.device_sub_class = 0x02;
-    fs_config.device_protocol = 0x00;
-    fs_config.composite_with_iads = false;
-
-    let mut fs_config_descriptor = [0; 256];
-    let mut fs_bos_descriptor = [0; 64];
-    let mut fs_msos_descriptor = [0; 64];
-    let mut fs_control_buf = [0; 64];
-    let mut cdc_state = CdcState::new();
-    let mut fs_builder = Builder::new(
-        fs_driver,
-        fs_config,
-        &mut fs_config_descriptor,
-        &mut fs_bos_descriptor,
-        &mut fs_msos_descriptor,
-        &mut fs_control_buf,
-    );
-    let cdc = CdcAcmClass::new(&mut fs_builder, &mut cdc_state, ACM_PACKET_SIZE as u16);
-    let mut fs_usb = fs_builder.build();
-    let (cdc_sender, cdc_receiver) = cdc.split();
+    let mut acm_resources = AcmUsbResources::new();
+    let AcmUsb {
+        device: mut fs_usb,
+        sender: cdc_sender,
+        receiver: cdc_receiver,
+    } = setup_acm(otg_fs, dp, dm, &mut acm_resources);
 
     let dut_output = DutOutputPubSub::new();
     let mut dut_to_acm = match dut_output.subscriber() {
@@ -288,6 +270,52 @@ async fn acm_tcp_bridge<'d, D>(
     );
 
     join(usb_task, bridge_tasks).await;
+}
+
+#[cfg(feature = "acm-bridge")]
+fn setup_acm<'d>(
+    otg_fs: ch32_hal::Peri<'d, peripherals::OTG_FS>,
+    dp: ch32_hal::Peri<'d, peripherals::PA12>,
+    dm: ch32_hal::Peri<'d, peripherals::PA11>,
+    resources: &'d mut AcmUsbResources<'d>,
+) -> AcmUsb<'d> {
+    // CDC ACM allocates interrupt IN, bulk OUT, bulk IN, and then EP0 when the
+    // USB device starts. The pull-up is enabled before EP0 allocation in the
+    // current HAL, so too few buffers makes Linux see a device that never
+    // answers setup packets.
+    let fs_driver = otg_fs::Driver::new(otg_fs, dp, dm, &mut resources.ep_buffers);
+    let mut fs_config = embassy_usb::Config::new(VID, PID_ACM);
+    fs_config.manufacturer = Some("Arthur Heymans");
+    fs_config.product = Some("CH32V307 EHCI debug ACM bridge");
+    fs_config.serial_number = Some("ehci-acm");
+    fs_config.max_power = 100;
+    fs_config.max_packet_size_0 = 64;
+    fs_config.device_class = 0x02;
+    fs_config.device_sub_class = 0x02;
+    fs_config.device_protocol = 0x00;
+    fs_config.composite_with_iads = false;
+
+    let mut fs_builder = Builder::new(
+        fs_driver,
+        fs_config,
+        &mut resources.config_descriptor,
+        &mut resources.bos_descriptor,
+        &mut resources.msos_descriptor,
+        &mut resources.control_buf,
+    );
+    let cdc = CdcAcmClass::new(
+        &mut fs_builder,
+        &mut resources.cdc_state,
+        ACM_PACKET_SIZE as u16,
+    );
+    let device = fs_builder.build();
+    let (sender, receiver) = cdc.split();
+
+    AcmUsb {
+        device,
+        sender,
+        receiver,
+    }
 }
 
 #[cfg(feature = "tcp-bridge")]
