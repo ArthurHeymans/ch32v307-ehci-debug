@@ -10,7 +10,7 @@ Rust/Embassy firmware for using a CH32V307 as a coreboot EHCI debug dongle.
   - `tcp-bridge`: the devboard Ethernet PHY gets an address via DHCP and listens on TCP port `3333`.
   - Both can be enabled at once: DUT output is fanned out to ACM and TCP, while input from either backend is forwarded to the DUT.
 
-![CH32V307 reference board][assets/ch32v307.jpg]
+![CH32V307 reference board](assets/ch32v307.jpg)
 
 ## Build
 
