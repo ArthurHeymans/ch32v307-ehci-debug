@@ -94,6 +94,15 @@ The TCP stream is a raw bidirectional byte bridge to coreboot's EHCI debug conso
 
 This tree uses ArthurHeymans' `USB_DEBUG` branch of Embassy for `embassy-usb`. The needed upstreamable change delegates unrecognized standard device requests/descriptors to class handlers, letting the EHCI debug class answer `GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`.
 
+The `ch32-hal` USB drivers must keep endpoint 0 reserved for control transfers;
+otherwise CDC-ACM can accidentally allocate data endpoints 0/0x80 and Linux may
+drop the ACM device when the tty is opened. The USBHS driver also needs to arm
+OUT endpoints as soon as a configuration enables them, because coreboot sends a
+probe write immediately after configuring the EHCI debug device.
+
 The current `ch32-hal` USBHS driver cannot allocate the same endpoint index for
 both directions, so this firmware advertises debug OUT endpoint 1 and debug IN
-endpoint 2. coreboot reads those addresses from the USB debug descriptor.
+endpoint 2. coreboot reads those addresses from the USB debug descriptor. The
+bridge drops coreboot's initial `USB\r\n` probe write instead of forwarding it to
+ACM/TCP clients, and the ACM backend waits for DTR before sending data to the
+host tty.

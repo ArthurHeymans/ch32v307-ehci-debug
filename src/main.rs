@@ -62,6 +62,11 @@ const TCP_BUFFER_SIZE: usize = 1536;
 const TCP_IO_CHUNK: usize = 1024;
 const QUEUE_DEPTH: usize = 4096;
 
+// coreboot writes this once while probing the debug endpoint. It verifies that
+// the endpoint accepts OUT traffic, but it is not console output and should not
+// be forwarded to bridge clients.
+const COREBOOT_PROBE_WRITE: &[u8] = b"USB\r\n";
+
 type ByteChannel = Channel<NoopRawMutex, u8, QUEUE_DEPTH>;
 type ByteSender<'a> = Sender<'a, NoopRawMutex, u8, QUEUE_DEPTH>;
 type ByteReceiver<'a> = Receiver<'a, NoopRawMutex, u8, QUEUE_DEPTH>;
@@ -88,6 +93,7 @@ struct AcmUsbResources<'d> {
     msos_descriptor: [u8; 64],
     control_buf: [u8; 64],
     cdc_state: CdcState<'d>,
+    log_handler: AcmLogHandler,
 }
 
 #[cfg(feature = "acm-bridge")]
@@ -100,6 +106,7 @@ impl<'d> AcmUsbResources<'d> {
             msos_descriptor: [0; 64],
             control_buf: [0; 64],
             cdc_state: CdcState::new(),
+            log_handler: AcmLogHandler,
         }
     }
 }
@@ -109,6 +116,32 @@ struct AcmUsb<'d> {
     device: embassy_usb::UsbDevice<'d, UsbFsDriver<'d>>,
     sender: AcmCdcSender<'d>,
     receiver: AcmCdcReceiver<'d>,
+}
+
+#[cfg(feature = "acm-bridge")]
+struct AcmLogHandler;
+
+#[cfg(feature = "acm-bridge")]
+impl embassy_usb::Handler for AcmLogHandler {
+    fn enabled(&mut self, enabled: bool) {
+        ch32_hal::println!("[acm] USB device enabled={}", enabled);
+    }
+
+    fn reset(&mut self) {
+        ch32_hal::println!("[acm] USB bus reset");
+    }
+
+    fn addressed(&mut self, addr: u8) {
+        ch32_hal::println!("[acm] USB addressed addr={}", addr);
+    }
+
+    fn configured(&mut self, configured: bool) {
+        ch32_hal::println!("[acm] USB configured={}", configured);
+    }
+
+    fn suspended(&mut self, suspended: bool) {
+        ch32_hal::println!("[acm] USB suspended={}", suspended);
+    }
 }
 
 bind_interrupts!(struct UsbHsIrqs {
@@ -136,6 +169,8 @@ async fn main(_spawner: Spawner) -> ! {
         ..Default::default()
     };
     let p = hal::init(cfg);
+    ch32_hal::debug::SDIPrint::enable();
+    ch32_hal::println!("[boot] CH32V307 EHCI debug bridge starting");
 
     let mut hs_ep_buffers: [EndpointDataBuffer512; 3] =
         core::array::from_fn(|_| EndpointDataBuffer512::default());
@@ -167,15 +202,18 @@ async fn main(_spawner: Spawner) -> ! {
     let ehci = EhciDebugClass::new(&mut hs_builder, &mut ehci_state);
     let mut hs_usb = hs_builder.build();
     let (debug_out, debug_in) = ehci.split();
+    ch32_hal::println!("[usb-debug] high-speed USB device built");
 
     #[cfg(all(feature = "acm-bridge", not(feature = "tcp-bridge")))]
     {
+        ch32_hal::println!("[bridge] starting ACM-only bridge");
         let bridge = acm_bridge(p.OTG_FS, p.PA12, p.PA11, debug_out, debug_in);
         join(hs_usb.run(), bridge).await;
     }
 
     #[cfg(all(feature = "tcp-bridge", not(feature = "acm-bridge")))]
     {
+        ch32_hal::println!("[bridge] starting TCP-only bridge");
         let (stack, mut runner) = setup_network_stack();
         let bridge = tcp_bridge(stack, debug_out, debug_in);
         join(hs_usb.run(), join(runner.run(), bridge)).await;
@@ -183,6 +221,7 @@ async fn main(_spawner: Spawner) -> ! {
 
     #[cfg(all(feature = "acm-bridge", feature = "tcp-bridge"))]
     {
+        ch32_hal::println!("[bridge] starting ACM+TCP bridge");
         let (stack, mut runner) = setup_network_stack();
         let bridge = acm_tcp_bridge(p.OTG_FS, p.PA12, p.PA11, stack, debug_out, debug_in);
         join(hs_usb.run(), join(runner.run(), bridge)).await;
@@ -284,6 +323,7 @@ fn setup_acm<'d>(
     // USB device starts. The pull-up is enabled before EP0 allocation in the
     // current HAL, so too few buffers makes Linux see a device that never
     // answers setup packets.
+    ch32_hal::println!("[acm] creating full-speed CDC-ACM USB device");
     let fs_driver = otg_fs::Driver::new(otg_fs, dp, dm, &mut resources.ep_buffers);
     let mut fs_config = embassy_usb::Config::new(VID, PID_ACM);
     fs_config.manufacturer = Some("Arthur Heymans");
@@ -309,8 +349,10 @@ fn setup_acm<'d>(
         &mut resources.cdc_state,
         ACM_PACKET_SIZE as u16,
     );
+    fs_builder.handler(&mut resources.log_handler);
     let device = fs_builder.build();
     let (sender, receiver) = cdc.split();
+    ch32_hal::println!("[acm] CDC-ACM USB device built");
 
     AcmUsb {
         device,
@@ -369,8 +411,9 @@ where
 
     loop {
         debug_out.wait_enabled().await;
+        let mut probe_prefix_len = 0;
         while let Ok(n) = debug_out.read_packet(&mut buf).await {
-            for &byte in &buf[..n] {
+            for &byte in strip_coreboot_probe_prefix(&mut probe_prefix_len, &buf[..n]) {
                 bridge_tx.send(byte).await;
             }
         }
@@ -387,12 +430,30 @@ where
 
     loop {
         debug_out.wait_enabled().await;
+        let mut probe_prefix_len = 0;
         while let Ok(n) = debug_out.read_packet(&mut buf).await {
-            for &byte in &buf[..n] {
+            for &byte in strip_coreboot_probe_prefix(&mut probe_prefix_len, &buf[..n]) {
                 publisher.publish_immediate(byte);
             }
         }
     }
+}
+
+fn strip_coreboot_probe_prefix<'packet>(
+    probe_prefix_len: &mut usize,
+    packet: &'packet [u8],
+) -> &'packet [u8] {
+    let mut start = 0;
+    while *probe_prefix_len < COREBOOT_PROBE_WRITE.len() && start < packet.len() {
+        if packet[start] != COREBOOT_PROBE_WRITE[*probe_prefix_len] {
+            *probe_prefix_len = COREBOOT_PROBE_WRITE.len();
+            return packet;
+        }
+        *probe_prefix_len += 1;
+        start += 1;
+    }
+
+    &packet[start..]
 }
 
 async fn bridge_to_dut_task<'d, D>(mut debug_in: DebugIn<'d, D>, dut_rx: ByteReceiver<'_>)
@@ -404,11 +465,16 @@ where
     loop {
         debug_in.wait_enabled().await;
         let n = fill_packet(&dut_rx, &mut buf, DEBUG_TRANSACTION_SIZE).await;
-        if matches!(
-            debug_in.write_packet(&buf[..n]).await,
-            Err(EndpointError::Disabled)
-        ) {
-            continue;
+        match debug_in.write_packet(&buf[..n]).await {
+            Ok(()) => {}
+            Err(EndpointError::Disabled) => {
+                ch32_hal::println!("[usb-debug] IN write disabled");
+                continue;
+            }
+            Err(err) => {
+                ch32_hal::println!("[usb-debug] IN write error: {:?}", err);
+                continue;
+            }
         }
     }
 }
@@ -422,12 +488,22 @@ where
 
     loop {
         cdc_sender.wait_connection().await;
+        wait_acm_sender_dtr(&mut cdc_sender).await;
+        ch32_hal::println!("[acm] TX connected");
         let n = fill_packet(&dut_rx, &mut buf, ACM_TX_PACKET_SIZE).await;
-        if matches!(
-            cdc_sender.write_packet(&buf[..n]).await,
-            Err(EndpointError::Disabled)
-        ) {
+        if !cdc_sender.dtr() {
             continue;
+        }
+        match cdc_sender.write_packet(&buf[..n]).await {
+            Ok(()) => {}
+            Err(EndpointError::Disabled) => {
+                ch32_hal::println!("[acm] TX disabled");
+                continue;
+            }
+            Err(err) => {
+                ch32_hal::println!("[acm] TX error: {:?}", err);
+                continue;
+            }
         }
     }
 }
@@ -443,12 +519,22 @@ async fn acm_pubsub_tx_task<'d, D>(
 
     loop {
         cdc_sender.wait_connection().await;
+        wait_acm_sender_dtr(&mut cdc_sender).await;
+        ch32_hal::println!("[acm] TX connected");
         let n = fill_pubsub_packet(dut_rx, &mut buf, ACM_TX_PACKET_SIZE).await;
-        if matches!(
-            cdc_sender.write_packet(&buf[..n]).await,
-            Err(EndpointError::Disabled)
-        ) {
+        if !cdc_sender.dtr() {
             continue;
+        }
+        match cdc_sender.write_packet(&buf[..n]).await {
+            Ok(()) => {}
+            Err(EndpointError::Disabled) => {
+                ch32_hal::println!("[acm] TX disabled");
+                continue;
+            }
+            Err(err) => {
+                ch32_hal::println!("[acm] TX error: {:?}", err);
+                continue;
+            }
         }
     }
 }
@@ -462,11 +548,47 @@ where
 
     loop {
         cdc_receiver.wait_connection().await;
-        while let Ok(n) = cdc_receiver.read_packet(&mut buf).await {
-            for &byte in &buf[..n] {
-                dut_tx.send(byte).await;
+        wait_acm_receiver_dtr(&mut cdc_receiver).await;
+        ch32_hal::println!("[acm] RX connected");
+        loop {
+            if !cdc_receiver.dtr() {
+                break;
+            }
+            match cdc_receiver.read_packet(&mut buf).await {
+                Ok(n) => {
+                    for &byte in &buf[..n] {
+                        dut_tx.send(byte).await;
+                    }
+                }
+                Err(err) => {
+                    ch32_hal::println!("[acm] RX error: {:?}", err);
+                    break;
+                }
             }
         }
+    }
+}
+
+// The CDC endpoints are enabled when the USB configuration is selected, before
+// a userspace terminal necessarily opens the tty. Wait for DTR so DUT output is
+// only written after the ACM client is ready to receive it.
+#[cfg(feature = "acm-bridge")]
+async fn wait_acm_sender_dtr<'d, D>(sender: &mut CdcSender<'d, D>)
+where
+    D: embassy_usb::driver::Driver<'d>,
+{
+    while !sender.dtr() {
+        embassy_time::Timer::after_millis(10).await;
+    }
+}
+
+#[cfg(feature = "acm-bridge")]
+async fn wait_acm_receiver_dtr<'d, D>(receiver: &mut CdcReceiver<'d, D>)
+where
+    D: embassy_usb::driver::Driver<'d>,
+{
+    while !receiver.dtr() {
+        embassy_time::Timer::after_millis(10).await;
     }
 }
 
