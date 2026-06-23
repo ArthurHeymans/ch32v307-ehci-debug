@@ -19,6 +19,13 @@ const DEBUG_DESCRIPTOR_LEN: usize = 4;
 /// Maximum payload size of an EHCI debug-port transaction.
 pub const DEBUG_TRANSACTION_SIZE: usize = 8;
 
+/// USB 2.0 high-speed bulk endpoints must advertise 512-byte packets.
+///
+/// EHCI debug transactions still carry at most `DEBUG_TRANSACTION_SIZE` bytes;
+/// this is only the descriptor/allocation size needed for a valid high-speed
+/// bulk endpoint.
+pub const DEBUG_ENDPOINT_MAX_PACKET_SIZE: usize = 512;
+
 /// Holds control-request state for the EHCI debug class.
 pub struct State {
     handler: DebugControlHandler,
@@ -57,7 +64,7 @@ impl<'d, D: Driver<'d>> EhciDebugClass<'d, D> {
         let read_ep = alt.alloc_endpoint_out(
             EndpointType::Bulk,
             Some(EndpointAddress::from_parts(1, Direction::Out)),
-            DEBUG_TRANSACTION_SIZE as u16,
+            DEBUG_ENDPOINT_MAX_PACKET_SIZE as u16,
             0,
         );
         alt.endpoint_descriptor(
@@ -70,7 +77,7 @@ impl<'d, D: Driver<'d>> EhciDebugClass<'d, D> {
         let write_ep = alt.alloc_endpoint_in(
             EndpointType::Bulk,
             Some(EndpointAddress::from_parts(2, Direction::In)),
-            DEBUG_TRANSACTION_SIZE as u16,
+            DEBUG_ENDPOINT_MAX_PACKET_SIZE as u16,
             0,
         );
         alt.endpoint_descriptor(
@@ -108,9 +115,13 @@ impl<'d, D: Driver<'d>> DebugOut<'d, D> {
     }
 
     /// Reads one EHCI debug OUT transaction.
+    ///
+    /// The buffer must match the advertised high-speed bulk max packet size,
+    /// even though debug-mode transactions are expected to contain at most
+    /// `DEBUG_TRANSACTION_SIZE` bytes.
     pub async fn read_packet(
         &mut self,
-        buf: &mut [u8; DEBUG_TRANSACTION_SIZE],
+        buf: &mut [u8; DEBUG_ENDPOINT_MAX_PACKET_SIZE],
     ) -> Result<usize, embassy_usb::driver::EndpointError> {
         self.ep.read(buf).await
     }

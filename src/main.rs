@@ -39,7 +39,8 @@ use static_cell::StaticCell;
 mod ehci_debug;
 
 use ehci_debug::{
-    DebugIn, DebugOut, EhciDebugClass, State as EhciDebugState, DEBUG_TRANSACTION_SIZE,
+    DebugIn, DebugOut, EhciDebugClass, State as EhciDebugState, DEBUG_ENDPOINT_MAX_PACKET_SIZE,
+    DEBUG_TRANSACTION_SIZE,
 };
 
 const VID: u16 = 0x1209;
@@ -364,7 +365,7 @@ async fn dut_to_bridge_task<'d, D>(mut debug_out: DebugOut<'d, D>, bridge_tx: By
 where
     D: embassy_usb::driver::Driver<'d>,
 {
-    let mut buf = [0; DEBUG_TRANSACTION_SIZE];
+    let mut buf = [0; DEBUG_ENDPOINT_MAX_PACKET_SIZE];
 
     loop {
         debug_out.wait_enabled().await;
@@ -382,7 +383,7 @@ where
     D: embassy_usb::driver::Driver<'d>,
 {
     let publisher = output.immediate_publisher();
-    let mut buf = [0; DEBUG_TRANSACTION_SIZE];
+    let mut buf = [0; DEBUG_ENDPOINT_MAX_PACKET_SIZE];
 
     loop {
         debug_out.wait_enabled().await;
