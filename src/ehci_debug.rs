@@ -6,14 +6,12 @@
 //! host uses those endpoints as the console pipes.
 
 use embassy_usb::control::{InResponse, OutResponse, Recipient, Request, RequestType};
-use embassy_usb::descriptor::{SynchronizationType, UsageType};
+use embassy_usb::descriptor::{descriptor_type, SynchronizationType, UsageType};
 use embassy_usb::driver::{
     Direction, Driver, Endpoint, EndpointAddress, EndpointIn, EndpointOut, EndpointType,
 };
 use embassy_usb::{Builder, Handler};
 
-const USB_DT_DEBUG: u8 = 0x0a;
-const USB_DEVICE_DEBUG_MODE: u16 = 6;
 const DEBUG_DESCRIPTOR_LEN: usize = 4;
 
 /// Maximum payload size of an EHCI debug-port transaction.
@@ -37,7 +35,7 @@ impl State {
     pub const fn new() -> Self {
         Self {
             handler: DebugControlHandler {
-                descriptor: [DEBUG_DESCRIPTOR_LEN as u8, USB_DT_DEBUG, 0, 0],
+                descriptor: [DEBUG_DESCRIPTOR_LEN as u8, descriptor_type::DEBUG, 0, 0],
                 debug_mode: false,
             },
         }
@@ -190,8 +188,8 @@ impl Handler for DebugControlHandler {
             return None;
         }
 
-        let (descriptor_type, descriptor_index) = req.descriptor_type_index();
-        if descriptor_type != USB_DT_DEBUG || descriptor_index != 0 {
+        let (dtype, descriptor_index) = req.descriptor_type_index();
+        if dtype != descriptor_type::DEBUG || descriptor_index != 0 {
             return None;
         }
 
@@ -213,7 +211,7 @@ impl Handler for DebugControlHandler {
             return None;
         }
 
-        if req.value == USB_DEVICE_DEBUG_MODE && req.index == 0 && data.is_empty() {
+        if req.value == Request::FEATURE_DEVICE_DEBUG_MODE && req.index == 0 && data.is_empty() {
             self.debug_mode = true;
             ch32_hal::println!("[usb-debug] SET_FEATURE(DEBUG_MODE) accepted");
             Some(OutResponse::Accepted)

@@ -92,13 +92,20 @@ The TCP stream is a raw bidirectional byte bridge to coreboot's EHCI debug conso
 
 ## Notes
 
-This tree uses ArthurHeymans' `USB_DEBUG` branch of Embassy for `embassy-usb`. The needed upstreamable change delegates unrecognized standard device requests/descriptors to class handlers, letting the EHCI debug class answer `GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)`.
+The `embassy-usb` change that lets class handlers answer
+`GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)` is
+upstream in [embassy-rs/embassy#6408](https://github.com/embassy-rs/embassy/pull/6408).
+No `embassy-usb` release contains it yet, so `[patch.crates-io]` tracks embassy
+`main` until one does.
 
-The `ch32-hal` USB drivers must keep endpoint 0 reserved for control transfers;
-otherwise CDC-ACM can accidentally allocate data endpoints 0/0x80 and Linux may
-drop the ACM device when the tty is opened. The USBHS driver also needs to arm
-OUT endpoints as soon as a configuration enables them, because coreboot sends a
-probe write immediately after configuring the EHCI debug device.
+The `ch32-hal` USB fixes this firmware needs — reserve endpoint 0 for control
+transfers (otherwise CDC-ACM can accidentally allocate data endpoints 0/0x80 and
+Linux may drop the ACM device when the tty is opened), arm OUT endpoints as soon
+as a configuration enables them (coreboot sends a probe write immediately after
+configuring the EHCI debug device), and wake endpoint tasks on reset — are
+proposed upstream as [ch32-rs/ch32-hal#189](https://github.com/ch32-rs/ch32-hal/pull/189).
+Until that merges, `ch32-hal` comes from the local `../ch32-hal` checkout that
+carries those fixes.
 
 The current `ch32-hal` USBHS driver cannot allocate the same endpoint index for
 both directions, so this firmware advertises debug OUT endpoint 1 and debug IN

@@ -36,12 +36,14 @@ strip = false
 lto = true
 opt-level = "z"
 
+# The embassy-usb debug-extension support (embassy-rs/embassy#6408) is merged
+# but not yet in a crates.io release; track embassy main until it ships.
 [patch.crates-io]
-embassy-usb = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
-embassy-usb-driver = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
-embassy-futures = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
-embassy-sync = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
-embassy-time = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
-embassy-time-driver = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
-embassy-time-queue-utils = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
-embassy-net-driver-channel = { git = "https://github.com/ArthurHeymans/embassy.git", branch = "USB_DEBUG" }
+embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-usb-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-time-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-time-queue-utils = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-net-driver-channel = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
