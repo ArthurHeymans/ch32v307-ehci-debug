@@ -13,6 +13,8 @@ compile_error!("enable one bridge feature: `acm-bridge` or `tcp-bridge`");
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     #[cfg(feature = "sdi-log")]
     ch32_hal::println!("[panic] {}", _info);
+    #[cfg(feature = "defmt")]
+    defmt::error!("[panic] {}", defmt::Display2Format(_info));
     hal::pac::PFIC.cfgr().write(|w| {
         w.set_keycode(hal::pac::pfic::vals::Keycode::KEY3);
         w.set_resetsys(true);
@@ -20,7 +22,22 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
+#[cfg(all(feature = "sdi-log", feature = "defmt"))]
+compile_error!("`sdi-log` and `defmt` are mutually exclusive");
+
+#[cfg(feature = "defmt")]
+use defmt_rtt as _;
+
 // SDI writes block unless a debugger is actively draining the registers.
+// defmt-rtt never blocks: without a reader it drops output.
+#[cfg(feature = "defmt")]
+macro_rules! log {
+    ($($arg:tt)*) => {{
+        defmt::info!($($arg)*);
+    }};
+}
+
+#[cfg(not(feature = "defmt"))]
 macro_rules! log {
     ($($arg:tt)*) => {{
         #[cfg(feature = "sdi-log")]
@@ -233,6 +250,9 @@ async fn main(_spawner: Spawner) -> ! {
     {
         log!("[bridge] starting ACM-only bridge");
         let bridge = acm_bridge(p.OTG_FS, p.PA12, p.PA11, debug_out, debug_in);
+        #[cfg(feature = "defmt")]
+        join(join(hs_usb.run(), bridge), heartbeat()).await;
+        #[cfg(not(feature = "defmt"))]
         join(hs_usb.run(), bridge).await;
     }
 
@@ -253,6 +273,36 @@ async fn main(_spawner: Spawner) -> ! {
     }
 
     loop {}
+}
+
+/// Periodically log the raw USB, clock and interrupt-controller state, so a
+/// wedged USB device can be diagnosed from the RTT log without halting the CPU.
+#[cfg(feature = "defmt")]
+async fn heartbeat() {
+    fn rd(addr: usize) -> u32 {
+        // SAFETY: fixed, always-mapped CH32V307 peripheral registers; reads
+        // of these words have no side effects.
+        unsafe { core::ptr::read_volatile(addr as *const u32) }
+    }
+    loop {
+        embassy_time::Timer::after_secs(2).await;
+        defmt::info!(
+            "[hb] rcc ctlr={=u32:#010x} cfgr0={=u32:#010x} | fs {=u32:#010x} {=u32:#010x} {=u32:#010x} ep0={=u32:#010x} ep2={=u32:#010x} ep3={=u32:#010x} | hs {=u32:#010x} {=u32:#010x} {=u32:#010x} | pfic en3={=u32:#010x} pend3={=u32:#010x}",
+            rd(0x4002_1000),
+            rd(0x4002_1004),
+            rd(0x5000_0000),
+            rd(0x5000_0004),
+            rd(0x5000_000c),
+            rd(0x5000_0030),
+            rd(0x5000_0038),
+            rd(0x5000_003c),
+            rd(0x4002_3400),
+            rd(0x4002_3404),
+            rd(0x4002_3408),
+            rd(0xe000_e008),
+            rd(0xe000_e028),
+        );
+    }
 }
 
 #[cfg(all(feature = "acm-bridge", not(feature = "tcp-bridge")))]

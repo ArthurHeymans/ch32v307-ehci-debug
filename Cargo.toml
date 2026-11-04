@@ -8,6 +8,9 @@ default = ["acm-bridge"]
 acm-bridge = []
 # Requires a WCH-Link actively reading SDI output; leave off for ISP flashing.
 sdi-log = []
+# defmt logging over RTT, for `probe-rs run`/`probe-rs attach` with a WCH-Link.
+# Also enables the HAL's and embassy-usb's own defmt logging.
+defmt = ["dep:defmt", "dep:defmt-rtt", "ch32-hal/defmt", "embassy-usb/defmt"]
 tcp-bridge = ["dep:embassy-net", "dep:embassy-net-driver", "dep:embedded-io-async", "dep:static_cell"]
 
 [dependencies]
@@ -19,6 +22,8 @@ ch32-hal = { path = "../ch32-hal", features = [
     "highcode",
 ] }
 embassy-executor = { version = "0.10.0", features = ["platform-spin", "executor-thread"] }
+defmt = { version = "1.0", optional = true }
+defmt-rtt = { version = "1.0", optional = true }
 embassy-futures = "0.1.2"
 embassy-net = { version = "0.9.1", optional = true, features = ["tcp", "dhcpv4", "medium-ethernet", "proto-ipv4"] }
 embassy-net-driver = { version = "0.2.0", optional = true }

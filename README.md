@@ -47,6 +47,18 @@ SDI logging is disabled by default: it blocks startup when no debugger is
 reading the debug registers. Enable `--features sdi-log` only with a WCH-Link
 actively draining SDI output (for example, the cargo runner below).
 
+WCH-Link firmware older than v2.10 can't drain SDI at all. With such a
+probe, use `--features defmt` instead: it logs over RTT (never blocking without
+a reader) and includes the HAL's and embassy-usb's own logging plus a 2 s
+register heartbeat. Pick the level with `DEFMT_LOG` at build time:
+
+```sh
+DEFMT_LOG=debug cargo build --release --features defmt
+probe-rs run --chip CH32V307VCT6 target/riscv32imfc-unknown-none-elf/release/ch32v307-ehci-debug
+```
+
+`DEFMT_LOG=trace` also logs every USB interrupt.
+
 The cargo runner is configured for WCH-Link:
 
 ```sh
