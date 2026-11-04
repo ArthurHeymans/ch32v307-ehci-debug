@@ -4,7 +4,21 @@
 #[cfg(not(any(feature = "acm-bridge", feature = "tcp-bridge")))]
 compile_error!("enable one bridge feature: `acm-bridge` or `tcp-bridge`");
 
-use panic_halt as _;
+/// Reset the bridge on a panic instead of halting it. A halted CPU leaves
+/// both USB devices attached but unresponsive (Linux reports
+/// `device descriptor read/64, error -110`) until the board is power-cycled;
+/// a reset re-enumerates both sides. This is WCH's `NVIC_SystemReset()`:
+/// PFIC_CFGR = KEY3 | RESETSYS.
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    #[cfg(feature = "sdi-log")]
+    ch32_hal::println!("[panic] {}", _info);
+    hal::pac::PFIC.cfgr().write(|w| {
+        w.set_keycode(hal::pac::pfic::vals::Keycode::KEY3);
+        w.set_resetsys(true);
+    });
+    loop {}
+}
 
 // SDI writes block unless a debugger is actively draining the registers.
 macro_rules! log {
