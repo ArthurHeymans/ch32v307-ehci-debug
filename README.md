@@ -43,6 +43,10 @@ target/riscv32imfc-unknown-none-elf/release/ch32v307-ehci-debug
 
 ## Flash
 
+SDI logging is disabled by default: it blocks startup when no debugger is
+reading the debug registers. Enable `--features sdi-log` only with a WCH-Link
+actively draining SDI output (for example, the cargo runner below).
+
 The cargo runner is configured for WCH-Link:
 
 ```sh
@@ -95,8 +99,10 @@ The TCP stream is a raw bidirectional byte bridge to coreboot's EHCI debug conso
 The `embassy-usb` change that lets class handlers answer
 `GET_DESCRIPTOR(USB_DT_DEBUG)` and `SET_FEATURE(USB_DEVICE_DEBUG_MODE)` is
 upstream in [embassy-rs/embassy#6408](https://github.com/embassy-rs/embassy/pull/6408).
-No `embassy-usb` release contains it yet, so `[patch.crates-io]` tracks embassy
-`main` until one does.
+No `embassy-usb` release contains it yet, so `[patch.crates-io]` pins Embassy
+to the same git source and revision as `../ch32-hal` until one does. Keep these
+in sync when updating the HAL, otherwise Cargo creates incompatible copies of
+the USB driver trait.
 
 The `ch32-hal` USB fixes this firmware needs — reserve endpoint 0 for control
 transfers (otherwise CDC-ACM can accidentally allocate data endpoints 0/0x80 and

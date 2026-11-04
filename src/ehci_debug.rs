@@ -55,7 +55,7 @@ impl<'d, D: Driver<'d>> EhciDebugClass<'d, D> {
     /// and OUT, so the defaults are OUT endpoint 1 and IN endpoint 2.  coreboot
     /// reads the actual endpoint numbers from the USB debug descriptor.
     pub fn new(builder: &mut Builder<'d, D>, state: &'d mut State) -> Self {
-        ch32_hal::println!("[usb-debug] creating EHCI debug interface");
+        log!("[usb-debug] creating EHCI debug interface");
 
         let mut function = builder.function(0xff, 0, 0);
         let mut interface = function.interface();
@@ -89,12 +89,10 @@ impl<'d, D: Driver<'d>> EhciDebugClass<'d, D> {
 
         state.handler.descriptor[2] = write_ep.info().addr.into();
         state.handler.descriptor[3] = read_ep.info().addr.into();
-        ch32_hal::println!(
-            "[usb-debug] endpoints: out=0x{:02x} in=0x{:02x} mps={}",
-            u8::from(read_ep.info().addr),
-            u8::from(write_ep.info().addr),
-            DEBUG_ENDPOINT_MAX_PACKET_SIZE,
-        );
+        log!("[usb-debug] endpoints: out=0x{:02x} in=0x{:02x} mps={}",
+        u8::from(read_ep.info().addr),
+        u8::from(write_ep.info().addr),
+        DEBUG_ENDPOINT_MAX_PACKET_SIZE,);
         drop(function);
 
         builder.handler(&mut state.handler);
@@ -160,24 +158,24 @@ struct DebugControlHandler {
 
 impl Handler for DebugControlHandler {
     fn enabled(&mut self, enabled: bool) {
-        ch32_hal::println!("[usb-debug] device enabled={}", enabled);
+        log!("[usb-debug] device enabled={}", enabled);
     }
 
     fn reset(&mut self) {
         self.debug_mode = false;
-        ch32_hal::println!("[usb-debug] bus reset");
+        log!("[usb-debug] bus reset");
     }
 
     fn addressed(&mut self, addr: u8) {
-        ch32_hal::println!("[usb-debug] addressed addr={}", addr);
+        log!("[usb-debug] addressed addr={}", addr);
     }
 
     fn configured(&mut self, configured: bool) {
-        ch32_hal::println!("[usb-debug] configured={}", configured);
+        log!("[usb-debug] configured={}", configured);
     }
 
     fn suspended(&mut self, suspended: bool) {
-        ch32_hal::println!("[usb-debug] suspended={}", suspended);
+        log!("[usb-debug] suspended={}", suspended);
     }
 
     fn control_in<'a>(&'a mut self, req: Request, buf: &'a mut [u8]) -> Option<InResponse<'a>> {
@@ -195,11 +193,9 @@ impl Handler for DebugControlHandler {
 
         let len = core::cmp::min(req.length as usize, self.descriptor.len());
         buf[..len].copy_from_slice(&self.descriptor[..len]);
-        ch32_hal::println!(
-            "[usb-debug] GET_DESCRIPTOR(DEBUG) len={} requested={}",
-            len,
-            req.length,
-        );
+        log!("[usb-debug] GET_DESCRIPTOR(DEBUG) len={} requested={}",
+        len,
+        req.length,);
         Some(InResponse::Accepted(&buf[..len]))
     }
 
@@ -213,15 +209,13 @@ impl Handler for DebugControlHandler {
 
         if req.value == Request::FEATURE_DEVICE_DEBUG_MODE && req.index == 0 && data.is_empty() {
             self.debug_mode = true;
-            ch32_hal::println!("[usb-debug] SET_FEATURE(DEBUG_MODE) accepted");
+            log!("[usb-debug] SET_FEATURE(DEBUG_MODE) accepted");
             Some(OutResponse::Accepted)
         } else {
-            ch32_hal::println!(
-                "[usb-debug] SET_FEATURE rejected value={} index={} data_len={}",
-                req.value,
-                req.index,
-                data.len(),
-            );
+            log!("[usb-debug] SET_FEATURE rejected value={} index={} data_len={}",
+            req.value,
+            req.index,
+            data.len(),);
             Some(OutResponse::Rejected)
         }
     }

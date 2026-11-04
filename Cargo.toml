@@ -6,6 +6,8 @@ edition = "2021"
 [features]
 default = ["acm-bridge"]
 acm-bridge = []
+# Requires a WCH-Link actively reading SDI output; leave off for ISP flashing.
+sdi-log = []
 tcp-bridge = ["dep:embassy-net", "dep:embassy-net-driver", "dep:embedded-io-async", "dep:static_cell"]
 
 [dependencies]
@@ -27,8 +29,8 @@ embassy-usb-driver = "0.2.2"
 embedded-io-async = { version = "0.7", optional = true }
 panic-halt = "1.0"
 portable-atomic = { version = "1", features = ["critical-section"] }
-qingke = "0.7"
-qingke-rt = { version = "0.7", features = ["highcode"] }
+qingke = "0.8"
+qingke-rt = { version = "0.8", features = ["highcode"] }
 static_cell = { version = "2.1", optional = true }
 
 [profile.release]
@@ -37,13 +39,14 @@ lto = true
 opt-level = "z"
 
 # The embassy-usb debug-extension support (embassy-rs/embassy#6408) is merged
-# but not yet in a crates.io release; track embassy main until it ships.
+# but not yet in a crates.io release. Match ch32-hal's git source and revision
+# so the HAL and embassy-usb use the same USB driver trait.
 [patch.crates-io]
-embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-usb-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-time-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-time-queue-utils = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-net-driver-channel = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+embassy-usb = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }
+embassy-usb-driver = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }
+embassy-time-driver = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }
+embassy-time-queue-utils = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }
+embassy-net-driver-channel = { git = "https://github.com/embassy-rs/embassy", rev = "27d398592b8a8c415c54eb04a0893aa9ef20316d" }

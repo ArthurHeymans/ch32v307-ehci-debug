@@ -12,6 +12,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "aligned"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee4508988c62edf04abd8d92897fca0c2995d907ce1dfeaf369dac3716a40685"
+dependencies = [
+ "as-slice",
+]
+
+[[package]]
+name = "as-slice"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "516b6b4f0e40d50dcda9365d53964ec74560ad4284da2e7fc97122cd83174516"
+dependencies = [
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -115,7 +133,6 @@ dependencies = [
  "embassy-time-queue-utils",
  "embassy-usb-driver",
  "embedded-can",
- "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "embedded-hal-nb",
@@ -132,12 +149,11 @@ dependencies = [
 
 [[package]]
 name = "ch32-metapac"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7723aa419049a85f9b6023d7c09c17b8355adae8a845d790151b4300f09997c2"
+version = "0.1.1"
+source = "git+https://github.com/ArthurHeymans/ch32-metapac?rev=7f1c480ae5fef4b3c49ff5f12a79da29f0898046#7f1c480ae5fef4b3c49ff5f12a79da29f0898046"
 dependencies = [
  "cortex-m",
- "riscv 0.12.1",
+ "riscv",
  "vcell",
 ]
 
@@ -282,7 +298,7 @@ checksum = "2fc328bf943af66b80b98755db9106bf7e7471b0cf47dc8559cd9a6be504cc9c"
 [[package]]
 name = "embassy-executor-timer-queue"
 version = "0.1.1"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
  "unitrait",
 ]
@@ -290,13 +306,13 @@ dependencies = [
 [[package]]
 name = "embassy-futures"
 version = "0.1.2"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 
 [[package]]
 name = "embassy-hal-internal"
-version = "0.3.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95285007a91b619dc9f26ea8f55452aa6c60f7115a4edc05085cd2bd3127cd7a"
+checksum = "568659fc53866d3d85c60fa33723fb751aa69e71507634fc2c19e7649432fb75"
 dependencies = [
  "num-traits",
 ]
@@ -327,7 +343,7 @@ checksum = "524eb3c489760508f71360112bca70f6e53173e6fe48fc5f0efd0f5ab217751d"
 [[package]]
 name = "embassy-net-driver-channel"
 version = "0.4.0"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
  "embassy-futures",
  "embassy-sync",
@@ -337,7 +353,7 @@ dependencies = [
 [[package]]
 name = "embassy-sync"
 version = "0.8.0"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
  "cfg-if",
  "critical-section",
@@ -350,7 +366,7 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.5.1"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
  "cfg-if",
  "critical-section",
@@ -365,7 +381,7 @@ dependencies = [
 [[package]]
 name = "embassy-time-driver"
 version = "0.2.2"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
  "document-features",
 ]
@@ -373,7 +389,7 @@ dependencies = [
 [[package]]
 name = "embassy-time-queue-utils"
 version = "0.3.2"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
  "embassy-executor-timer-queue 0.1.1",
  "heapless 0.9.3",
@@ -382,8 +398,9 @@ dependencies = [
 [[package]]
 name = "embassy-usb"
 version = "0.6.0"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
+ "aligned",
  "bitflags 2.13.2",
  "embassy-futures",
  "embassy-net-driver-channel",
@@ -392,14 +409,13 @@ dependencies = [
  "embassy-usb-driver",
  "embedded-io-async 0.7.0",
  "heapless 0.9.3",
- "ssmarshal",
  "usbd-hid",
 ]
 
 [[package]]
 name = "embassy-usb-driver"
 version = "0.2.2"
-source = "git+https://github.com/embassy-rs/embassy.git?branch=main#508d54ea3244d5266c82198cfcf31ce53e13a15b"
+source = "git+https://github.com/embassy-rs/embassy?rev=27d398592b8a8c415c54eb04a0893aa9ef20316d#27d398592b8a8c415c54eb04a0893aa9ef20316d"
 dependencies = [
  "embedded-io-async 0.6.1",
  "embedded-io-async 0.7.0",
@@ -503,12 +519,6 @@ name = "embedded-storage"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c815b3ed4213d85d6cfd274b871f430c0681084e28dfd4a537877f47f844ec83"
-
-[[package]]
-name = "encode_unicode"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
 name = "find-msvc-tools"
@@ -748,10 +758,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a513e167849a384b7f9b746e517604398518590a9142f4846a32e3c2a4de7b11"
 
 [[package]]
-name = "paste"
-version = "1.0.15"
+name = "pastey"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "pin-project-lite"
@@ -803,21 +813,21 @@ dependencies = [
 
 [[package]]
 name = "qingke"
-version = "0.7.0"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f6e6adbd788587b2f0893d36ef8dd1eb9e7f9b7a32678e9b43149df1880575a"
+checksum = "6a0b57aac7e371ff87f7a54cb00e43f082a98a08c3f714ba76d688f15b330ea7"
 dependencies = [
  "bit_field",
  "cfg-if",
  "critical-section",
- "riscv 0.15.0",
+ "riscv",
 ]
 
 [[package]]
 name = "qingke-rt"
-version = "0.7.0"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f3f5debfcb74752c0949a1f2700e5c98a34ae06174b6551034d99de0d12f13c"
+checksum = "12caa16328820c5f5796a75cbf1dd7cd767f0dd7b6f6debff62b0ec87eda4ff1"
 dependencies = [
  "qingke",
  "qingke-rt-macros",
@@ -825,9 +835,9 @@ dependencies = [
 
 [[package]]
 name = "qingke-rt-macros"
-version = "0.7.0"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e26f9a1d7490c8c7e75ef095511c8b146a2958f27e4e3e9d3ce2411d948f07ff"
+checksum = "31485bba667f3aea856cb56d969130607a87788e9dda6372e8126dffd78f4fd4"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -869,57 +879,33 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "riscv"
-version = "0.12.1"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ea8ff73d3720bdd0a97925f0bf79ad2744b6da8ff36be3840c48ac81191d7a7"
+checksum = "e42cdafa0aa3f0f956b7993cace26de5dafff7bb4f2c5b1dcb2c3723f4267a4f"
 dependencies = [
  "critical-section",
  "embedded-hal 1.0.0",
- "paste",
- "riscv-macros 0.1.0",
- "riscv-pac",
-]
-
-[[package]]
-name = "riscv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b05cfa3f7b30c84536a9025150d44d26b8e1cc20ddf436448d74cd9591eefb25"
-dependencies = [
- "critical-section",
- "embedded-hal 1.0.0",
- "paste",
- "riscv-macros 0.3.0",
- "riscv-pac",
+ "pastey",
+ "riscv-macros",
+ "riscv-types",
 ]
 
 [[package]]
 name = "riscv-macros"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ad9f6dda08d90d091bc0743967cab369b8fe39ea74b26783ba2ca5c0ce39e86"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "riscv-types"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f265be5d634272320a7de94cea15c22a3bfdd4eb42eb43edc528415f066a1f25"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "riscv-macros"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d323d13972c1b104aa036bc692cd08b822c8bbf23d79a27c526095856499799"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "riscv-pac"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8188909339ccc0c68cfb5a04648313f09621e8b87dc03095454f1a11f6c5d436"
+checksum = "d3f2ad9f15a07f4a0e1677124f9120ce7e83ab7e1ca7186af0ca9da529b62e80"
 
 [[package]]
 name = "rustc_version"
@@ -1024,16 +1010,6 @@ dependencies = [
  "cfg-if",
  "heapless 0.9.3",
  "managed",
-]
-
-[[package]]
-name = "ssmarshal"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3e6ad23b128192ed337dfa4f1b8099ced0c2bf30d61e551b65fda5916dbb850"
-dependencies = [
- "encode_unicode",
- "serde",
 ]
 
 [[package]]
@@ -1288,8 +1264,7 @@ dependencies = [
 [[package]]
 name = "xarxa-driver"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/xarxa?rev=e5bc1b0408773f804f8d165257f34c3a11ae0181#e5bc1b0408773f804f8d165257f34c3a11ae0181"
+source = "git+https://github.com/embassy-rs/xarxa?rev=93228f1ec64720122016be52be4671e413fa92a9#93228f1ec64720122016be52be4671e413fa92a9"
 dependencies = [
- "critical-section",
  "document-features",
 ]

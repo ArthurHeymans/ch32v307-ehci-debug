@@ -6,6 +6,16 @@ compile_error!("enable one bridge feature: `acm-bridge` or `tcp-bridge`");
 
 use panic_halt as _;
 
+// SDI writes block unless a debugger is actively draining the registers.
+macro_rules! log {
+    ($($arg:tt)*) => {{
+        #[cfg(feature = "sdi-log")]
+        ch32_hal::println!($($arg)*);
+        #[cfg(not(feature = "sdi-log"))]
+        let _ = core::format_args!($($arg)*);
+    }};
+}
+
 #[cfg(feature = "tcp-bridge")]
 use ch32_hal::eth::{self, Ethernet, GenericPhy, PacketQueue, PhyInterface};
 #[cfg(feature = "acm-bridge")]
@@ -26,7 +36,7 @@ use embassy_sync::channel::{Channel, Receiver, Sender};
 #[cfg(all(feature = "acm-bridge", feature = "tcp-bridge"))]
 use embassy_sync::pubsub::{PubSubChannel, Subscriber};
 #[cfg(feature = "acm-bridge")]
-use embassy_usb::class::cdc_acm::{
+use embassy_usb::class::cdc_acm::device::{
     CdcAcmClass, Receiver as CdcReceiver, Sender as CdcSender, State as CdcState,
 };
 use embassy_usb::driver::EndpointError;
@@ -124,23 +134,23 @@ struct AcmLogHandler;
 #[cfg(feature = "acm-bridge")]
 impl embassy_usb::Handler for AcmLogHandler {
     fn enabled(&mut self, enabled: bool) {
-        ch32_hal::println!("[acm] USB device enabled={}", enabled);
+        log!("[acm] USB device enabled={}", enabled);
     }
 
     fn reset(&mut self) {
-        ch32_hal::println!("[acm] USB bus reset");
+        log!("[acm] USB bus reset");
     }
 
     fn addressed(&mut self, addr: u8) {
-        ch32_hal::println!("[acm] USB addressed addr={}", addr);
+        log!("[acm] USB addressed addr={}", addr);
     }
 
     fn configured(&mut self, configured: bool) {
-        ch32_hal::println!("[acm] USB configured={}", configured);
+        log!("[acm] USB configured={}", configured);
     }
 
     fn suspended(&mut self, suspended: bool) {
-        ch32_hal::println!("[acm] USB suspended={}", suspended);
+        log!("[acm] USB suspended={}", suspended);
     }
 }
 
@@ -169,8 +179,9 @@ async fn main(_spawner: Spawner) -> ! {
         ..Default::default()
     };
     let p = hal::init(cfg);
+    #[cfg(feature = "sdi-log")]
     ch32_hal::debug::SDIPrint::enable();
-    ch32_hal::println!("[boot] CH32V307 EHCI debug bridge starting");
+    log!("[boot] CH32V307 EHCI debug bridge starting");
 
     let mut hs_ep_buffers: [EndpointDataBuffer512; 3] =
         core::array::from_fn(|_| EndpointDataBuffer512::default());
@@ -202,18 +213,18 @@ async fn main(_spawner: Spawner) -> ! {
     let ehci = EhciDebugClass::new(&mut hs_builder, &mut ehci_state);
     let mut hs_usb = hs_builder.build();
     let (debug_out, debug_in) = ehci.split();
-    ch32_hal::println!("[usb-debug] high-speed USB device built");
+    log!("[usb-debug] high-speed USB device built");
 
     #[cfg(all(feature = "acm-bridge", not(feature = "tcp-bridge")))]
     {
-        ch32_hal::println!("[bridge] starting ACM-only bridge");
+        log!("[bridge] starting ACM-only bridge");
         let bridge = acm_bridge(p.OTG_FS, p.PA12, p.PA11, debug_out, debug_in);
         join(hs_usb.run(), bridge).await;
     }
 
     #[cfg(all(feature = "tcp-bridge", not(feature = "acm-bridge")))]
     {
-        ch32_hal::println!("[bridge] starting TCP-only bridge");
+        log!("[bridge] starting TCP-only bridge");
         let (stack, mut runner) = setup_network_stack();
         let bridge = tcp_bridge(stack, debug_out, debug_in);
         join(hs_usb.run(), join(runner.run(), bridge)).await;
@@ -221,7 +232,7 @@ async fn main(_spawner: Spawner) -> ! {
 
     #[cfg(all(feature = "acm-bridge", feature = "tcp-bridge"))]
     {
-        ch32_hal::println!("[bridge] starting ACM+TCP bridge");
+        log!("[bridge] starting ACM+TCP bridge");
         let (stack, mut runner) = setup_network_stack();
         let bridge = acm_tcp_bridge(p.OTG_FS, p.PA12, p.PA11, stack, debug_out, debug_in);
         join(hs_usb.run(), join(runner.run(), bridge)).await;
@@ -323,7 +334,7 @@ fn setup_acm<'d>(
     // USB device starts. The pull-up is enabled before EP0 allocation in the
     // current HAL, so too few buffers makes Linux see a device that never
     // answers setup packets.
-    ch32_hal::println!("[acm] creating full-speed CDC-ACM USB device");
+    log!("[acm] creating full-speed CDC-ACM USB device");
     let fs_driver = otg_fs::Driver::new(otg_fs, dp, dm, &mut resources.ep_buffers);
     let mut fs_config = embassy_usb::Config::new(VID, PID_ACM);
     fs_config.manufacturer = Some("Arthur Heymans");
@@ -352,7 +363,7 @@ fn setup_acm<'d>(
     fs_builder.handler(&mut resources.log_handler);
     let device = fs_builder.build();
     let (sender, receiver) = cdc.split();
-    ch32_hal::println!("[acm] CDC-ACM USB device built");
+    log!("[acm] CDC-ACM USB device built");
 
     AcmUsb {
         device,
@@ -468,11 +479,11 @@ where
         match debug_in.write_packet(&buf[..n]).await {
             Ok(()) => {}
             Err(EndpointError::Disabled) => {
-                ch32_hal::println!("[usb-debug] IN write disabled");
+                log!("[usb-debug] IN write disabled");
                 continue;
             }
             Err(err) => {
-                ch32_hal::println!("[usb-debug] IN write error: {:?}", err);
+                log!("[usb-debug] IN write error: {:?}", err);
                 continue;
             }
         }
@@ -489,7 +500,7 @@ where
     loop {
         cdc_sender.wait_connection().await;
         wait_acm_sender_dtr(&mut cdc_sender).await;
-        ch32_hal::println!("[acm] TX connected");
+        log!("[acm] TX connected");
         let n = fill_packet(&dut_rx, &mut buf, ACM_TX_PACKET_SIZE).await;
         if !cdc_sender.dtr() {
             continue;
@@ -497,11 +508,11 @@ where
         match cdc_sender.write_packet(&buf[..n]).await {
             Ok(()) => {}
             Err(EndpointError::Disabled) => {
-                ch32_hal::println!("[acm] TX disabled");
+                log!("[acm] TX disabled");
                 continue;
             }
             Err(err) => {
-                ch32_hal::println!("[acm] TX error: {:?}", err);
+                log!("[acm] TX error: {:?}", err);
                 continue;
             }
         }
@@ -520,7 +531,7 @@ async fn acm_pubsub_tx_task<'d, D>(
     loop {
         cdc_sender.wait_connection().await;
         wait_acm_sender_dtr(&mut cdc_sender).await;
-        ch32_hal::println!("[acm] TX connected");
+        log!("[acm] TX connected");
         let n = fill_pubsub_packet(dut_rx, &mut buf, ACM_TX_PACKET_SIZE).await;
         if !cdc_sender.dtr() {
             continue;
@@ -528,11 +539,11 @@ async fn acm_pubsub_tx_task<'d, D>(
         match cdc_sender.write_packet(&buf[..n]).await {
             Ok(()) => {}
             Err(EndpointError::Disabled) => {
-                ch32_hal::println!("[acm] TX disabled");
+                log!("[acm] TX disabled");
                 continue;
             }
             Err(err) => {
-                ch32_hal::println!("[acm] TX error: {:?}", err);
+                log!("[acm] TX error: {:?}", err);
                 continue;
             }
         }
@@ -549,7 +560,7 @@ where
     loop {
         cdc_receiver.wait_connection().await;
         wait_acm_receiver_dtr(&mut cdc_receiver).await;
-        ch32_hal::println!("[acm] RX connected");
+        log!("[acm] RX connected");
         loop {
             if !cdc_receiver.dtr() {
                 break;
@@ -561,7 +572,7 @@ where
                     }
                 }
                 Err(err) => {
-                    ch32_hal::println!("[acm] RX error: {:?}", err);
+                    log!("[acm] RX error: {:?}", err);
                     break;
                 }
             }
