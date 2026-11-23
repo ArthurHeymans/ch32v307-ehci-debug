@@ -1,0 +1,73 @@
+# Keep full commit pins for third-party actions.
+# yamllint disable rule:line-length
+name: Firmware installer
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build firmware variants
+        run: |
+          rustup toolchain install nightly-2026-10-08 --profile minimal \
+            --component rust-src --component llvm-tools
+          bash scripts/build-firmware.sh
+      - name: Check and build the installer
+        working-directory: web
+        env:
+          # npm may try the SSH form of a GitHub URL. CI uses public HTTPS.
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: url.https://github.com/.insteadOf
+          GIT_CONFIG_VALUE_0: ssh://git@github.com/
+        run: |
+          npm ci
+          npm run format:check
+          npm test
+          npm run build
+          npm run firmware -- --input ../target/pages-firmware \
+            --output dist/firmware --commit "$GITHUB_SHA"
+      - name: Test the bundled site
+        working-directory: web
+        env:
+          TEST_BUNDLED_FIRMWARE: '1'
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:browser
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        with:
+          path: web/dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy firmware installer
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

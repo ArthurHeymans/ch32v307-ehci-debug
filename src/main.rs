@@ -116,8 +116,12 @@ type DutOutputPubSub = PubSubChannel<NoopRawMutex, u8, QUEUE_DEPTH, 2, 1>;
 #[cfg(all(feature = "acm-bridge", feature = "tcp-bridge"))]
 type DutOutputSubscriber<'a> = Subscriber<'a, NoopRawMutex, u8, QUEUE_DEPTH, 2, 1>;
 
+// Two DMA buffers per direction leave stack space in the 64 KiB link
+// layout, even when the firmware includes both bridge backends.
 #[cfg(feature = "tcp-bridge")]
-type NetDevice = Ethernet<'static, 4, 4, GenericPhy>;
+const ETH_QUEUE_DEPTH: usize = 2;
+#[cfg(feature = "tcp-bridge")]
+type NetDevice = Ethernet<'static, ETH_QUEUE_DEPTH, ETH_QUEUE_DEPTH, GenericPhy>;
 
 #[cfg(feature = "acm-bridge")]
 type UsbFsDriver<'d> = otg_fs::Driver<'d, peripherals::OTG_FS, ACM_ENDPOINT_BUFFER_COUNT, 512>;
@@ -443,8 +447,9 @@ fn setup_network_stack() -> (
 ) {
     let mac_addr = [0x02, 0xcb, 0x00, 0x12, 0x34, 0x57];
 
-    static QUEUE: StaticCell<PacketQueue<4, 4>> = StaticCell::new();
-    let queue = QUEUE.init(PacketQueue::new());
+    static QUEUE: static_cell::ConstStaticCell<PacketQueue<ETH_QUEUE_DEPTH, ETH_QUEUE_DEPTH>> =
+        static_cell::ConstStaticCell::new(PacketQueue::new());
+    let queue = QUEUE.take();
     let phy = GenericPhy::new(1);
     let device = Ethernet::new(queue, mac_addr, phy, PhyInterface::Internal10M, 144);
 

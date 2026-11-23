@@ -12,6 +12,17 @@ Rust/Embassy firmware for using a CH32V307 as a coreboot EHCI debug dongle.
 
 ![CH32V307 reference board](assets/ch32v307.jpg)
 
+## Install from your browser
+
+Open the [firmware installer](https://arthurheymans.github.io/ch32v307-ehci-debug/)
+in desktop Chrome or Edge. Choose **USB serial**, **Ethernet**, or **USB serial +
+Ethernet**, then follow the on-screen WCH ISP instructions. The installer uses
+USBHS for flashing and verifies the write before it requests a reboot. It supports
+unprotected **CH32V307VCT6** boards with at least **64 KiB of configured SRAM** and
+never changes option bytes. You can also download the selected `.bin` for manual
+flashing. See [the web installer README](web/README.md) for local development and
+GitHub Pages setup.
+
 ## Build
 
 Default CDC-ACM bridge:
@@ -42,6 +53,23 @@ target/riscv32imfc-unknown-none-elf/release/ch32v307-ehci-debug
 ```
 
 ## Flash
+
+To flash a downloaded `.bin` without a browser, disconnect the board from the
+coreboot target. Set **BOOT0 high, BOOT1 low**, reset or power-cycle, and connect
+USBHS (not USB serial or WCH-Link) to your computer. Check the chip before
+flashing:
+
+```sh
+wchisp info
+wchisp flash ch32v307-ehci-debug-acm.bin
+```
+
+Use the filename of the variant you downloaded. Set **BOOT0 low** and reset
+again if needed. The [WCH ISP udev rules](udev/70-wch-isp.rules) grant access to
+the ROM bootloader from a local Linux desktop session. Install them under
+`/etc/udev/rules.d/`, run `sudo udevadm control --reload-rules`, and replug in ISP
+mode. If building locally, `bash scripts/build-firmware.sh` generates all three
+`.bin` files under `target/pages-firmware/` (see the [toolchain prerequisites](web/README.md#bundle-firmware)).
 
 SDI logging is disabled by default: it blocks startup when no debugger is
 reading the debug registers. Enable `--features sdi-log` only with a WCH-Link
@@ -122,8 +150,8 @@ Linux may drop the ACM device when the tty is opened), arm OUT endpoints as soon
 as a configuration enables them (coreboot sends a probe write immediately after
 configuring the EHCI debug device), and wake endpoint tasks on reset — are
 proposed upstream as [ch32-rs/ch32-hal#189](https://github.com/ch32-rs/ch32-hal/pull/189).
-Until that merges, `ch32-hal` comes from the local `../ch32-hal` checkout that
-carries those fixes.
+The firmware pins the same `ch32-hal` fork revision for local and GitHub Pages
+builds, so a sibling checkout is not required.
 
 The current `ch32-hal` USBHS driver cannot allocate the same endpoint index for
 both directions, so this firmware advertises debug OUT endpoint 1 and debug IN
