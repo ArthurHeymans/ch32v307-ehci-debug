@@ -1,0 +1,257 @@
+<!doctype html>
+<!-- Adapted from the DediBridge installer for the EHCI debug bridge, 2026-11-23. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta
+      name="description"
+      content="Install the coreboot EHCI debug bridge on a CH32V307VCT6 devboard over USB."
+    />
+    <title>EHCI Debug Bridge · Firmware installer</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <header class="shell masthead">
+      <a
+        class="brand"
+        href="https://github.com/ArthurHeymans/ch32v307-ehci-debug"
+        ><span class="brand-mark" aria-hidden="true">E</span> EHCI Debug
+        Bridge</a
+      >
+      <a
+        class="text-link"
+        href="https://github.com/ArthurHeymans/ch32v307-ehci-debug"
+        >Source & documentation ↗</a
+      >
+    </header>
+    <main class="shell">
+      <section class="intro">
+        <h1>Install EHCI debug bridge firmware</h1>
+        <p class="lede">
+          CH32V307VCT6 USB installer for the coreboot debug bridge.
+        </p>
+      </section>
+      <noscript
+        ><p class="warning">
+          Enable JavaScript to use the installer, or follow the manual
+          instructions below.
+        </p></noscript
+      >
+      <p id="unsupported" class="warning" hidden>
+        USB installation needs HTTPS and desktop Chrome or Edge with WebUSB. You
+        can still download firmware and follow the manual instructions.
+      </p>
+      <div class="workspace">
+        <section class="card" aria-labelledby="board-title">
+          <div class="section-heading">
+            <span class="step">01</span>
+            <h2 id="board-title">Check your board</h2>
+          </div>
+          <div class="board-option fixed">
+            <span
+              ><strong>CH32V307 devboard</strong
+              ><small>CH32V307VCT6 · WCH USB ISP</small></span
+            >
+            <span class="chip" aria-hidden="true">WCH</span>
+          </div>
+          <div class="divider"></div>
+          <div class="section-heading">
+            <span class="step">02</span>
+            <h2>Choose firmware</h2>
+          </div>
+          <fieldset id="firmware-choices" class="board-options">
+            <legend class="sr-only">Bridge variant</legend>
+            <label class="board-option">
+              <input type="radio" name="variant" value="acm" checked />
+              <span
+                ><strong>USB serial</strong
+                ><small>CDC-ACM on the USB full-speed port</small></span
+              >
+              <span class="chip" aria-hidden="true">DEFAULT</span>
+            </label>
+            <label class="board-option">
+              <input type="radio" name="variant" value="tcp" />
+              <span
+                ><strong>Ethernet</strong
+                ><small>DHCP · TCP port 3333</small></span
+              >
+            </label>
+            <label class="board-option">
+              <input type="radio" name="variant" value="acm-tcp" />
+              <span
+                ><strong>USB serial + Ethernet</strong
+                ><small>Console output on both interfaces</small></span
+              >
+            </label>
+          </fieldset>
+          <p id="release" class="muted">Checking bundled firmware…</p>
+          <div class="button-row">
+            <button id="use-release" class="secondary" type="button" disabled>
+              Use bundled firmware
+            </button>
+            <a id="download" class="text-link" hidden>Download image ↓</a>
+          </div>
+          <details class="local-file">
+            <summary>Or choose a local firmware image</summary>
+            <label for="file">Firmware file (.bin)</label>
+            <input id="file" type="file" accept=".bin" />
+            <p class="muted small">
+              A raw BIN does not identify its target or bridge variant. Only use
+              a trusted image built for your board.
+            </p>
+          </details>
+          <div id="image-info" class="image-info" hidden>
+            <strong id="image-name"></strong>
+            <span id="image-size" class="muted small"></span>
+            <code id="image-hash"></code>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="install-title">
+          <div class="section-heading">
+            <span class="step">03</span>
+            <h2 id="install-title">Connect & install</h2>
+          </div>
+          <div class="boot-guide">
+            <h3>Start in WCH ISP mode</h3>
+            <ol>
+              <li>
+                Disconnect the board from the coreboot target. Set
+                <strong>BOOT0 high, BOOT1 low</strong>, then reset or
+                power-cycle.
+              </li>
+              <li>
+                Connect the <strong>USBHS</strong> port to this computer, not
+                the USB serial or WCH-Link port.
+              </li>
+              <li>
+                After connecting below, restore
+                <strong>BOOT0 low without resetting</strong>, so installation
+                can reboot into the firmware.
+              </li>
+            </ol>
+            <p class="small muted">
+              Check your board’s schematic and jumpers. Installation requires at
+              least 64 KiB of configured SRAM and unprotected flash. Option
+              bytes are never changed.
+            </p>
+          </div>
+          <div class="connection">
+            <span
+              class="indicator"
+              id="device-indicator"
+              aria-hidden="true"
+            ></span>
+            <span id="device">Not connected</span>
+          </div>
+          <div class="button-row">
+            <button id="connect" class="secondary" type="button" disabled>
+              Connect bootloader
+            </button>
+            <button id="disconnect" class="quiet" type="button" disabled>
+              Disconnect
+            </button>
+          </div>
+          <label class="confirmation">
+            <input id="confirm" type="checkbox" />
+            <span
+              >I checked the board and firmware, disconnected the coreboot
+              target, and understand that installation
+              <strong>erases this board’s firmware</strong>.</span
+            >
+          </label>
+          <div class="button-row">
+            <button id="install" class="primary" type="button" disabled>
+              Install firmware <span aria-hidden="true">→</span>
+            </button>
+            <button id="stop" class="quiet" type="button" disabled>Stop</button>
+          </div>
+          <progress
+            id="progress"
+            max="100"
+            value="0"
+            aria-label="Installation progress"
+          ></progress>
+          <p id="status" role="status" aria-live="polite">
+            Choose firmware and connect your board to begin.
+          </p>
+          <details id="usb-permissions" class="permissions">
+            <summary>USB access & udev rules</summary>
+            <p>
+              <strong>Linux:</strong> browser device selection does not grant OS
+              access. The WCH ISP bootloader appears as
+              <code>4348:55e0</code> or <code>1a86:55e0</code>, not as the USB
+              serial bridge.
+            </p>
+            <p>
+              <a href="./70-wch-isp.rules" download>Download 70-wch-isp.rules</a
+              >. These rules grant access to the active desktop user, not
+              everyone:
+            </p>
+            <pre><code><!-- udev-rules --></code></pre>
+            <p>On systemd Linux distributions, install the downloaded file:</p>
+            <pre><code>sudo install -m 644 70-wch-isp.rules /etc/udev/rules.d/70-wch-isp.rules
+sudo udevadm control --reload-rules</code></pre>
+            <p>
+              <strong>NixOS:</strong> put the rules beside your Nix module, add
+              the following, then run <code>sudo nixos-rebuild switch</code>.
+            </p>
+            <pre><code>services.udev.packages = [
+  (pkgs.writeTextDir "etc/udev/rules.d/70-wch-isp.rules"
+    (builtins.readFile ./70-wch-isp.rules))
+];</code></pre>
+            <p>
+              <strong
+                >Unplug and replug the board in ISP mode, then click Connect
+                bootloader again.</strong
+              >
+              Do not run the browser as root.
+            </p>
+            <p>
+              <strong>Windows:</strong> the bootloader’s vendor interface may
+              need a WinUSB driver. Browser or enterprise USB policies can also
+              block access.
+            </p>
+          </details>
+          <details class="logs">
+            <summary>Transfer log</summary>
+            <pre id="log" aria-label="Transfer log"></pre>
+          </details>
+        </section>
+      </div>
+      <section class="fallback">
+        <div>
+          <h2>Prefer the manual route?</h2>
+          <p>
+            In ISP mode, run <code>wchisp info</code> to check the chip, then
+            <code
+              >wchisp flash
+              <span id="manual-image">ch32v307-ehci-debug-acm.bin</span></code
+            >.
+          </p>
+        </div>
+        <a
+          class="text-link"
+          href="https://github.com/ArthurHeymans/ch32v307-ehci-debug#flash"
+          >Manual flashing guide ↗</a
+        >
+      </section>
+    </main>
+    <footer class="shell">
+      <p>
+        Runs locally in your browser. Firmware is sent to your board, never
+        uploaded to a server.
+      </p>
+      <p>
+        <a href="./licenses/GPL-2.0.txt">Installer: GPL-2.0</a> ·
+        <a href="./sources/README.md">Source & third-party licenses</a>
+      </p>
+    </footer>
+  </body>
+</html>

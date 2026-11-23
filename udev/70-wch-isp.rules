@@ -1,0 +1,4 @@
+# Grant the active desktop user access to WCH ROM ISP (not WCH-Link or USB serial).
+# Keep this file before 73-seat-late.rules so logind applies the uaccess ACLs.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="4348", ATTR{idProduct}=="55e0", TAG+="uaccess"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1a86", ATTR{idProduct}=="55e0", TAG+="uaccess"

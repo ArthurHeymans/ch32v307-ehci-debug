@@ -14,7 +14,8 @@ defmt = ["dep:defmt", "dep:defmt-rtt", "ch32-hal/defmt", "embassy-usb/defmt"]
 tcp-bridge = ["dep:embassy-net", "dep:embassy-net-driver", "dep:embedded-io-async", "dep:static_cell"]
 
 [dependencies]
-ch32-hal = { path = "../ch32-hal", features = [
+# Pin the same USB-tested HAL for local builds and GitHub Pages firmware.
+ch32-hal = { git = "https://github.com/ArthurHeymans/ch32-hal", rev = "a41ea930ab79079ab74443157948f455a520009c", features = [
     "ch32v307vct6",
     "memory-x",
     "embassy",

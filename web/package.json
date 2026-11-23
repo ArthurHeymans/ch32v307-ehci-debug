@@ -1,0 +1,27 @@
+{
+  "name": "ch32v307-ehci-debug-installer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "GPL-2.0-only",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check src tests scripts index.html style.css '*.json' playwright.config.mjs README.md",
+    "test": "tsc --noEmit false --outDir .test-build && node --test tests/*.test.mjs",
+    "test:browser": "playwright test",
+    "build": "npm run typecheck && node scripts/build.mjs",
+    "firmware": "node scripts/firmware.mjs"
+  },
+  "dependencies": {
+    "wchisp-web": "git+https://github.com/ArthurHeymans/wchisp-web.git#cc4038be6a4498be2fbe3143abb2a973d9d4e7e4"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "esbuild": "0.25.12",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  }
+}
